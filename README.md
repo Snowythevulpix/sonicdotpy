@@ -6,9 +6,8 @@ Sonicdotpy is a simple yet addictive game inspired by the classic game Flappy Bi
 
 1. **Objective**: Guide Sonic through obstacles and survive as long as possible to achieve the highest score.
 2. **Controls**:
-   - Press the Spacebar or left-click to make Sonic jump.
+   - press left or right arrow keys to move left to right and space to jump
 3. **Gameplay**:
-   - Navigate Sonic through gaps between obstacles by tapping the Spacebar or left-clicking.
    - Avoid touching the obstacles or the game will end.
 4. **Scoring**:
    - The score increases as Sonic successfully passes through obstacles.
