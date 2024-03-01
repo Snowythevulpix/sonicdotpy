@@ -28,7 +28,7 @@ running_image = pygame.image.load(os.path.join("assets", "running.gif")).convert
 current_image = still_image
 
 # Colors
-WHITE = (255, 255, 255)
+WHITE = (255, 255, 255) 
 BLUE = (0, 0, 139)  # Dark blue
 BLACK = (0, 0, 0)    # Black for obstacles
 
@@ -38,7 +38,9 @@ sonic_y = screen_height // 2
 sonic_speed = 2  # Initial speed
 sonic_vel_x = 0
 sonic_vel_y = 0
-gravity = 0.5
+gravity = 0.025 
+jump_power = 10  # Initial jump power
+is_jumping = False
 
 # Sonic's dimensions
 sonic_width = still_image.get_width()
@@ -47,8 +49,8 @@ sonic_height = still_image.get_height()
 # Enemy properties
 enemy_width = sonic_width  # Match player's width
 enemy_height = sonic_height  # Match player's height
-enemy_speed = 1
-enemy_spawn_delay = 10  # in seconds
+enemy_speed = 0.5
+enemy_spawn_delay = 3  # in seconds
 enemy_spawn_timer = enemy_spawn_delay
 
 # Load the enemy image and print debug information
@@ -89,13 +91,16 @@ if 'RPC' in globals():
 
 class Enemy:
     def __init__(self):
-        self.x = screen_width + 50  # Spawn slightly off-screen from the right edge
+        self.x = random.randint(0, screen_width - enemy_width)  # Spawn at a random x position
         self.y = screen_height - floor_height - enemy_height  # Spawn on the floor
-        self.vel_x = -enemy_speed  # Move towards the left
-
+        self.vel_x = enemy_speed  # Initial movement direction
 
     def move(self):
         self.x += self.vel_x
+
+        # Bounce off the screen edges
+        if self.x <= 0 or self.x + enemy_width >= screen_width:
+            self.vel_x *= -1
 
     def draw(self, screen):
         screen.blit(enemy_img, (self.x, self.y))
@@ -111,12 +116,16 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.MOUSEBUTTONDOWN:  # Check for mouse click event
+            if not playing:  # Start the game if not already playing
+                playing = True
+                pygame.display.set_caption("Sonicdotpy - Playing")  # Change window title when playing
+        elif event.type == pygame.KEYDOWN:  # Check for key press events
+            if event.key == pygame.K_SPACE and not is_jumping:  # Check if spacebar is pressed and Sonic is not already jumping
+                sonic_vel_y = -jump_power
+                is_jumping = True
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_SPACE]:
-        playing = True
-        pygame.display.set_caption("Sonicdotpy - Playing")  # Change window title when playing
-
     if playing:
         current_time = pygame.time.get_ticks() / 1000
 
@@ -146,6 +155,7 @@ while running:
         if sonic_y + sonic_height >= screen_height - floor_height:
             sonic_y = screen_height - floor_height - sonic_height
             sonic_vel_y = 0
+            is_jumping = False  # Reset jumping state when landing
 
         # Limit Sonic's movement within the screen boundaries
         sonic_x = max(0, min(sonic_x, screen_width - sonic_width))
@@ -155,12 +165,6 @@ while running:
         if enemy_spawn_timer <= 0:
             current_enemy = Enemy()
             enemy_spawn_timer = enemy_spawn_delay
-
-        # Move and draw enemy
-        if current_enemy:
-            current_enemy.move()
-            current_enemy.draw(screen)
-            print("Enemy Position:", current_enemy.x, current_enemy.y)
 
         # Check for collision with the enemy
         if current_enemy and sonic_x < current_enemy.x + enemy_width and \
@@ -178,6 +182,11 @@ while running:
 
         # Draw Sonic
         screen.blit(current_image, (sonic_x, sonic_y))
+        
+        # Move and draw enemy
+        if current_enemy:
+            current_enemy.move()
+            current_enemy.draw(screen)
 
     else:
         # Draw home screen
