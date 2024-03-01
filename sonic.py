@@ -44,6 +44,17 @@ gravity = 0.5
 sonic_width = still_image.get_width()
 sonic_height = still_image.get_height()
 
+# Enemy properties
+enemy_width = sonic_width  # Match player's width
+enemy_height = sonic_height  # Match player's height
+enemy_speed = 1
+enemy_spawn_delay = 10  # in seconds
+enemy_spawn_timer = enemy_spawn_delay
+
+# Load the enemy image and print debug information
+enemy_img = pygame.image.load(os.path.join("assets", "enemy1.png")).convert_alpha()
+print("Enemy Image Dimensions:", enemy_img.get_width(), "x", enemy_img.get_height())
+
 # Floor properties
 floor_height = 100
 
@@ -51,33 +62,46 @@ floor_height = 100
 client_id = "1212820562452160592"
 
 # Initialize Discord Rich Presence
-RPC = Presence(client_id)
-RPC.connect()
+try:
+    RPC = Presence(client_id)
+    RPC.connect()
+except Exception as e:
+    print("Error initializing Discord Rich Presence:", e)
 
 # Update Discord Rich Presence in a separate thread
 def update_presence():
     while True:
-        RPC.update(
-            large_image="sonic_icon",
-            details="Playing Sonicdotpy",
-            state="In-game",
-            start=int(time.time())
-        )
-        time.sleep(15)  # Update every 15 seconds
+        try:
+            RPC.update(
+                large_image="sonic_icon",
+                details="Playing Sonicdotpy",
+                state="In-game",
+                start=int(time.time())
+            )
+            time.sleep(15)  # Update every 15 seconds
+        except Exception as e:
+            print("Error updating Discord Rich Presence:", e)
+            break
 
-# Start the thread to update presence
-threading.Thread(target=update_presence, daemon=True).start()
+# Start the thread to update presence if RPC is initialized
+if 'RPC' in globals():
+    threading.Thread(target=update_presence, daemon=True).start()
 
-# List to hold obstacle positions
-obstacles = []
+class Enemy:
+    def __init__(self):
+        self.x = screen_width + 50  # Spawn slightly off-screen from the right edge
+        self.y = screen_height - floor_height - enemy_height  # Spawn on the floor
+        self.vel_x = -enemy_speed  # Move towards the left
 
-# Generate obstacles
-def generate_obstacles():
-    # Generate obstacles as Sonic moves to the right
-    if sonic_vel_x > 0:
-        obstacle_y = random.randint(floor_height, screen_height - 100)
-        obstacle_x = random.randint(screen_width, screen_width + 200)  # Adjusted obstacle spawn area
-        obstacles.append(pygame.Rect(obstacle_x, obstacle_y, 5, sonic_height))  # Adjusted obstacle size
+
+    def move(self):
+        self.x += self.vel_x
+
+    def draw(self, screen):
+        screen.blit(enemy_img, (self.x, self.y))
+
+# Create an instance of the enemy
+current_enemy = None
 
 # Main loop
 running = True
@@ -126,18 +150,31 @@ while running:
         # Limit Sonic's movement within the screen boundaries
         sonic_x = max(0, min(sonic_x, screen_width - sonic_width))
 
-        # Generate obstacles
-        generate_obstacles()
+        # Spawn enemy
+        enemy_spawn_timer -= 1 / 60  # Decrease the timer based on the frame rate
+        if enemy_spawn_timer <= 0:
+            current_enemy = Enemy()
+            enemy_spawn_timer = enemy_spawn_delay
+
+        # Move and draw enemy
+        if current_enemy:
+            current_enemy.move()
+            current_enemy.draw(screen)
+            print("Enemy Position:", current_enemy.x, current_enemy.y)
+
+        # Check for collision with the enemy
+        if current_enemy and sonic_x < current_enemy.x + enemy_width and \
+                sonic_x + sonic_width > current_enemy.x and \
+                sonic_y < current_enemy.y + enemy_height and \
+                sonic_y + sonic_height > current_enemy.y:
+            print("Game Over, Sonic Died")
+            running = False
 
         # Draw playing screen
         screen.fill(BLUE)  # Dark blue background
 
         # Draw the floor
         pygame.draw.rect(screen, WHITE, (0, screen_height - floor_height, screen_width, floor_height))
-
-        # Draw obstacles
-        for obstacle in obstacles:
-            pygame.draw.rect(screen, BLACK, obstacle)
 
         # Draw Sonic
         screen.blit(current_image, (sonic_x, sonic_y))
@@ -150,4 +187,5 @@ while running:
     pygame.display.flip()
 
 # Close Discord Rich Presence connection when the game exits
-RPC.close()
+if 'RPC' in globals():
+    RPC.close()
